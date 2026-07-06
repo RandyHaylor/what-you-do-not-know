@@ -1,8 +1,15 @@
 This skill is a tool that constantly reminds claude agents what the DO NOT KNOW to prevent them from acting like they are authorities on subjects when they have done no research and have no real concrete knowledge and have not actually verified claims they make.
 
 SKILL.md - minimal, explains the skill and how to update skill settings
-topics.json - the list of things the agent 'knows' and 'doesn't know' - can be updated by user/agent
-inject_incompetence.py - cross platform script that assembles and returns the prompt from topics.json
+topics.json 
+	- the list of things the agent 'knows' and 'doesn't know' - can be updated by user/agent
+	- also contains settings, including the three optoins for level of detail for user echo
+	- has a setting that is passive/active - wherein there is no hook injection - only the SKILL.md manifest that gets added into every chat session stands as the impetus to act according to the stages of learning.
+inject_incompetence.py 
+	- cross platform script that assembles and returns the prompt from topics.json
+	- returns a json shape that contains the agent and user message separately
+	- it's the only script that reads topics.json
+
 
 claude-specific files
 claude_adapter_inject_incompetence.py - cross platform script that is the layer that reacts to the claude hooks
@@ -14,6 +21,8 @@ opencode-specific files
 
 
 Required in SKILL.md:
+
+*THE METADATA/MANIFEST THAT IS READ AND INJECTED INTO EVERY SESSION START SHOULD INCLUDE THE STAGES OF LEARNING AND REMINDING THE AGENT GENERICALLY THAT IT MUST ACT ACCORDING TO KNOWING WHAT IT DOESN'T KNOW, AND LISTING WHAT IT DOESN'T OR CAN'T KNOW FOR CERTAIN BEFORE EACH RESPONSE/TASK
 
 The 4 stages of learning
 1) Unconscious incompetence –  You don’t know what you don’t know.

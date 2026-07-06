@@ -1,13 +1,32 @@
 #!/usr/bin/env python3
-"""Assemble the "what you do not know" reminder prompt from topics.json.
+"""Assemble the "what you do not know" reminder from topics.json.
 
-Cross-platform (no OS-specific calls). This is the engine-agnostic core: it
-knows nothing about Claude hooks or OpenCode hooks. Adapters (e.g.
-claude_adapter_inject_incompetence.py) call build_reminder_message() and wrap
-the string in whatever shape their host expects.
+Cross-platform (no OS-specific calls). This is the engine-agnostic core and the
+ONLY script that reads topics.json. Host adapters (e.g.
+claude_adapter_inject_incompetence.py) call build_reminder_payload() and wrap
+the returned values in whatever shape their host expects.
 
-Run directly to print the current message to stdout (useful for previewing
-what the hook will inject):
+build_reminder_payload() returns a dict with the agent message and the user
+message kept SEPARATE, plus whether the skill is active:
+
+    {
+      "active": true,                 # from settings.mode ("active"/"passive")
+      "agent_message": "<full text>", # always the full reminder, for agent context
+      "user_message": "<text>"        # per settings.user_echo_detail
+    }
+
+User-echo detail levels (settings.user_echo_detail):
+  - "full"    : preamble + "What you don't know:" + every bullet (default).
+  - "compact" : only the bullets.
+  - "minimal" : one line, e.g. "...reminded agent it knows 3 things it does
+                not know...".
+
+Passive mode (settings.mode == "passive") means the host should perform NO hook
+injection; only the SKILL.md manifest stands. build_reminder_payload() still
+returns the assembled messages, but with "active": false so the adapter can
+choose to emit nothing.
+
+Run directly to print the payload as JSON to stdout (preview):
 
     python3 inject_incompetence.py
 """
@@ -16,6 +35,18 @@ import os
 import sys
 
 TOPICS_JSON_FILENAME = "topics.json"
+
+MODE_ACTIVE = "active"
+MODE_PASSIVE = "passive"
+
+USER_ECHO_DETAIL_FULL = "full"
+USER_ECHO_DETAIL_COMPACT = "compact"
+USER_ECHO_DETAIL_MINIMAL = "minimal"
+
+DEFAULT_MODE = MODE_ACTIVE
+DEFAULT_USER_ECHO_DETAIL = USER_ECHO_DETAIL_FULL
+
+WHAT_YOU_DONT_KNOW_HEADER = "What you don't know:"
 
 
 def path_to_topics_json():
@@ -30,34 +61,71 @@ def load_topics_config():
         return json.load(topics_file)
 
 
-def build_reminder_message(topics_config=None):
-    """Assemble the full agent-facing reminder string from topics.json.
+def _bullet_lines(things_you_do_not_know):
+    """Render each 'not known' item as an indented bullet line."""
+    return [f"  - {item}" for item in things_you_do_not_know]
 
-    Shape:
-        <preamble>
-        What you don't know:
-          - item
-          - item
+
+def build_full_message(preamble, things_you_do_not_know):
+    """Full reminder: preamble + header + every bullet. Used for the agent
+    message always, and for the 'full' user-echo detail level."""
+    lines = []
+    if preamble:
+        lines.append(preamble)
+    lines.append(WHAT_YOU_DONT_KNOW_HEADER)
+    lines.extend(_bullet_lines(things_you_do_not_know))
+    return "\n".join(lines)
+
+
+def build_compact_message(things_you_do_not_know):
+    """Compact user echo: only the bullets, no preamble or header."""
+    return "\n".join(_bullet_lines(things_you_do_not_know))
+
+
+def build_minimal_message(things_you_do_not_know):
+    """Minimal user echo: a single summary line with the item count."""
+    item_count = len(things_you_do_not_know)
+    return f"...reminded agent it knows {item_count} things it does not know..."
+
+
+def build_user_message(user_echo_detail, preamble, things_you_do_not_know):
+    """Pick the user-echo string for the configured detail level. Unknown
+    values fall back to the full message."""
+    if user_echo_detail == USER_ECHO_DETAIL_MINIMAL:
+        return build_minimal_message(things_you_do_not_know)
+    if user_echo_detail == USER_ECHO_DETAIL_COMPACT:
+        return build_compact_message(things_you_do_not_know)
+    return build_full_message(preamble, things_you_do_not_know)
+
+
+def build_reminder_payload(topics_config=None):
+    """Assemble the reminder payload from topics.json.
+
+    Returns {"active": bool, "agent_message": str, "user_message": str}.
     """
     if topics_config is None:
         topics_config = load_topics_config()
 
+    settings = topics_config.get("settings", {})
+    mode = settings.get("mode", DEFAULT_MODE)
+    user_echo_detail = settings.get("user_echo_detail", DEFAULT_USER_ECHO_DETAIL)
+
     preamble = topics_config.get("preamble", "").strip()
     things_you_do_not_know = topics_config.get("things_you_do_not_know", [])
 
-    lines = []
-    if preamble:
-        lines.append(preamble)
-    lines.append("What you don't know:")
-    for item in things_you_do_not_know:
-        lines.append(f"  - {item}")
+    agent_message = build_full_message(preamble, things_you_do_not_know)
+    user_message = build_user_message(user_echo_detail, preamble, things_you_do_not_know)
 
-    return "\n".join(lines)
+    return {
+        "active": mode != MODE_PASSIVE,
+        "agent_message": agent_message,
+        "user_message": user_message,
+    }
 
 
 def _main():
     try:
-        print(build_reminder_message())
+        payload = build_reminder_payload()
     except FileNotFoundError:
         print(f"ERROR: {TOPICS_JSON_FILENAME} not found next to inject_incompetence.py",
               file=sys.stderr)
@@ -66,6 +134,7 @@ def _main():
         print(f"ERROR: {TOPICS_JSON_FILENAME} is not valid JSON: {parse_error}",
               file=sys.stderr)
         return 1
+    print(json.dumps(payload, indent=2))
     return 0
 
 

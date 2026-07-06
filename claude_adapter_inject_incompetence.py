@@ -4,16 +4,20 @@
 This is the layer that reacts to Claude Code hooks. It is invoked by both the
 UserPromptSubmit and PreToolUse hook entries (see claude_install.py). It:
 
-  1. Builds the reminder message from topics.json (via inject_incompetence).
-  2. Emits it to Claude in agent-visible context using the hook JSON contract
+  1. Builds the reminder payload from topics.json (via inject_incompetence),
+     which returns the agent message and user message separately, plus whether
+     the skill is active.
+  2. If the skill is in passive mode ("active": false), emits nothing (no hook
+     injection); only the SKILL.md manifest stands.
+  3. Otherwise emits the AGENT message to Claude via the hook JSON contract
      `hookSpecificOutput.additionalContext` -- the same mechanism the
      source-of-truth-agent-tool skill uses to reach agent-visible context.
      NOTE: additionalContext is injected silently; the USER does not see it.
-  3. Echoes the SAME message to the user via the top-level `systemMessage` JSON
-     field ("Warning shown to user" per the Claude Code hooks docs). This is the
-     supported way to surface text to the user on a non-blocking (exit 0) run.
-     Hook stderr on exit 0 is dropped by Claude Code, so stderr is NOT used for
-     the user echo.
+  4. Echoes the USER message (whose verbosity follows settings.user_echo_detail)
+     to the user via the top-level `systemMessage` JSON field ("Warning shown to
+     user" per the Claude Code hooks docs). This is the supported way to surface
+     text to the user on a non-blocking (exit 0) run. Hook stderr on exit 0 is
+     dropped by Claude Code, so stderr is NOT used for the user echo.
 
 Fails silently (emits empty JSON, exit 0) on any error so a broken skill never
 blocks the user's tool calls or prompts.
@@ -61,7 +65,7 @@ def _read_hook_event_name_from_stdin():
 def _main():
     sys.path.insert(0, SCRIPT_DIRECTORY_ABSOLUTE_PATH)
     try:
-        from inject_incompetence import build_reminder_message
+        from inject_incompetence import build_reminder_payload
     except Exception:
         _emit_empty_and_exit_silently()
         return
@@ -69,12 +73,19 @@ def _main():
     hook_event_name = _read_hook_event_name_from_stdin()
 
     try:
-        reminder_message = build_reminder_message()
+        reminder_payload = build_reminder_payload()
     except Exception:
         _emit_empty_and_exit_silently()
         return
 
-    user_facing_echo = f"[what-you-do-not-know] reminder injected:\n{reminder_message}"
+    # Passive mode: no hook injection at all -- only the SKILL.md manifest stands.
+    if not reminder_payload.get("active", True):
+        _emit_empty_and_exit_silently()
+        return
+
+    agent_message = reminder_payload.get("agent_message", "")
+    user_message = reminder_payload.get("user_message", "")
+    user_facing_echo = f"[what-you-do-not-know] reminder injected:\n{user_message}"
 
     # systemMessage  -> shown to the USER (non-blocking, exit 0).
     # additionalContext -> injected into the AGENT's context (not user-visible).
@@ -82,7 +93,7 @@ def _main():
         "systemMessage": user_facing_echo,
         "hookSpecificOutput": {
             "hookEventName": hook_event_name,
-            "additionalContext": reminder_message,
+            "additionalContext": agent_message,
         },
     }))
     sys.exit(0)

@@ -1,4 +1,8 @@
 {
+  "settings": {
+    "mode": "active",
+    "user_echo_detail": "full"
+  },
   "preamble": "You are in the second stage of learning for most things - You know what you don't know.",
   "things_you_do_not_know": [
     "The first thing you suspect to be the problem is actually the problem without concrete proof.",
