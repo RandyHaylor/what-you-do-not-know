@@ -9,6 +9,6 @@
     "The first thing you suspect to be the problem is actually the problem without concrete proof.",
     "The best current solution to a design or troubleshooting problem is without a real web search first.",
     "That you know better than the user about any given topic.",
-    "How this application's interfaces or APIs are laid out exactly - the real function names, signatures, routes, and fields, without reading the actual source or docs first."
+    "How an application's interfaces or APIs are laid out exactly, without reading the source or docs first."
   ]
 }
