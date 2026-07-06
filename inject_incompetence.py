@@ -35,7 +35,6 @@ def build_reminder_message(topics_config=None):
 
     Shape:
         <preamble>
-        <known_but_verify_note>
         What you don't know:
           - item
           - item
@@ -44,15 +43,12 @@ def build_reminder_message(topics_config=None):
         topics_config = load_topics_config()
 
     preamble = topics_config.get("preamble", "").strip()
-    known_but_verify_note = topics_config.get("known_but_verify_note", "").strip()
     things_you_do_not_know = topics_config.get("things_you_do_not_know", [])
 
     lines = []
     if preamble:
         lines.append(preamble)
-    if known_but_verify_note:
-        lines.append(known_but_verify_note)
-    lines.append("What you don't know (do not act as an authority on these without tool-verified proof):")
+    lines.append("What you don't know:")
     for item in things_you_do_not_know:
         lines.append(f"  - {item}")
 

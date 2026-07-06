@@ -8,8 +8,12 @@ UserPromptSubmit and PreToolUse hook entries (see claude_install.py). It:
   2. Emits it to Claude in agent-visible context using the hook JSON contract
      `hookSpecificOutput.additionalContext` -- the same mechanism the
      source-of-truth-agent-tool skill uses to reach agent-visible context.
-  3. Echoes the message to stderr so the *user* can also see that the reminder
-     is being sent and what it currently contains.
+     NOTE: additionalContext is injected silently; the USER does not see it.
+  3. Echoes the SAME message to the user via the top-level `systemMessage` JSON
+     field ("Warning shown to user" per the Claude Code hooks docs). This is the
+     supported way to surface text to the user on a non-blocking (exit 0) run.
+     Hook stderr on exit 0 is dropped by Claude Code, so stderr is NOT used for
+     the user echo.
 
 Fails silently (emits empty JSON, exit 0) on any error so a broken skill never
 blocks the user's tool calls or prompts.
@@ -70,15 +74,17 @@ def _main():
         _emit_empty_and_exit_silently()
         return
 
-    # Echo to the user (stderr is surfaced in the Claude Code transcript).
-    print(f"[what-you-do-not-know] injecting reminder:\n{reminder_message}",
-          file=sys.stderr)
+    user_facing_echo = f"[what-you-do-not-know] reminder injected:\n{reminder_message}"
 
-    # Inject into agent-visible context.
-    print(json.dumps({"hookSpecificOutput": {
-        "hookEventName": hook_event_name,
-        "additionalContext": reminder_message,
-    }}))
+    # systemMessage  -> shown to the USER (non-blocking, exit 0).
+    # additionalContext -> injected into the AGENT's context (not user-visible).
+    print(json.dumps({
+        "systemMessage": user_facing_echo,
+        "hookSpecificOutput": {
+            "hookEventName": hook_event_name,
+            "additionalContext": reminder_message,
+        },
+    }))
     sys.exit(0)
 
 
