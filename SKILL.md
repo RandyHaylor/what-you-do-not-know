@@ -38,13 +38,14 @@ if it has stage 4 for many *complex* things, which in reality puts it back to
 stage 1 in practice.
 
 **This skill's main goal is to elevate the base agent's awareness so that
-stage 2 (you know what you don't know) is the baseline.** In active mode it does
-this with a hook that injects a small string on every PreToolUse and
-UserPromptSubmit event. The injected string is added to agent-visible context
-(same mechanism the `source-of-truth-agent-tool` skill uses) and the user echo
-is shown to the user so they can see it is being sent and see its current
-content. In passive mode there is no hook injection — only this SKILL.md
-manifest (the frontmatter `description`, loaded into every session) stands as the
+stage 2 (you know what you don't know) is the baseline.** It does this with a
+hook that injects a small string on the PreToolUse and/or UserPromptSubmit
+event, independently switchable per event (see Settings below). The injected
+string is added to agent-visible context (same mechanism the
+`source-of-truth-agent-tool` skill uses) and the user echo is shown to the user
+so they can see it is being sent and see its current content. With both
+triggers off, there is no hook injection at all — only this SKILL.md manifest
+(the frontmatter `description`, loaded into every session) stands as the
 impetus to act according to the stages of learning.
 
 ## Files
@@ -53,8 +54,8 @@ impetus to act according to the stages of learning.
 | --- | --- |
 | `SKILL.md` | This file. Its frontmatter `description` is the manifest injected into every session — it carries the stages of learning and the "things not known" so passive mode works with no hook. |
 | `topics.json` | Settings + the list of things the agent "knows" / "does not know". Edit this to change the message. |
-| `inject_incompetence.py` | Engine-agnostic core; the ONLY script that reads `topics.json`. Returns a JSON payload with the agent message and user message separate, plus whether the skill is active. |
-| `claude_adapter_inject_incompetence.py` | Claude-specific: reacts to Claude hooks, injects the agent message to agent context + echoes the user message to the user. Honors passive mode by emitting nothing. |
+| `inject_incompetence.py` | Engine-agnostic core; the ONLY script that reads `topics.json`. Returns a JSON payload with the agent message and user message separate, plus a per-event trigger flag. |
+| `claude_adapter_inject_incompetence.py` | Claude-specific: reacts to Claude hooks, injects the agent message to agent context + echoes the user message to the user. Emits nothing for an event whose trigger flag is off. |
 | `claude_install.py` | Installs the hook into `~/.claude/settings.json`. |
 | `claude_uninstall.py` | Uninstalls the hook. |
 
@@ -72,8 +73,13 @@ new Claude Code session after installing for the hook to take effect.
 
 | Setting | Values | Meaning |
 | --- | --- | --- |
-| `mode` | `active` (default) / `passive` | `active`: the hook injects on every event. `passive`: no hook injection — only this SKILL.md manifest stands. |
+| `trigger_on_tool_use` | `true` (default) / `false` | Whether the hook injects on `PreToolUse` (every tool call). |
+| `trigger_on_user_prompt_submit` | `true` (default) / `false` | Whether the hook injects on `UserPromptSubmit` (every user prompt). |
 | `user_echo_detail` | `full` (default) / `compact` / `minimal` | How much of the reminder the USER sees. The AGENT always receives the full message. |
+
+Setting both `trigger_on_tool_use` and `trigger_on_user_prompt_submit` to
+`false` is the passive equivalent: no hook injection at all, only the SKILL.md
+manifest stands.
 
 `user_echo_detail` levels:
 
@@ -90,7 +96,7 @@ Edit `topics.json` — no reinstall needed; the hook reads it fresh each time.
 - `things_you_do_not_know` — the bullet list of items to treat as unknown until
   tool-verified.
 
-Preview the assembled payload (agent + user messages, and active flag) with:
+Preview the assembled payload (agent + user messages, and both trigger flags) with:
 
 ```
 python3 inject_incompetence.py

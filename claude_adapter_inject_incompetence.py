@@ -5,10 +5,12 @@ This is the layer that reacts to Claude Code hooks. It is invoked by both the
 UserPromptSubmit and PreToolUse hook entries (see claude_install.py). It:
 
   1. Builds the reminder payload from topics.json (via inject_incompetence),
-     which returns the agent message and user message separately, plus whether
-     the skill is active.
-  2. If the skill is in passive mode ("active": false), emits nothing (no hook
-     injection); only the SKILL.md manifest stands.
+     which returns the agent message and user message separately, plus a
+     trigger flag for each hook event this skill reacts to
+     (trigger_on_tool_use, trigger_on_user_prompt_submit).
+  2. Picks the flag matching the event that actually fired. If it is false,
+     emits nothing (no hook injection) for that event; only the SKILL.md
+     manifest stands. Setting both flags false is the passive equivalent.
   3. Otherwise emits the AGENT message to Claude via the hook JSON contract
      `hookSpecificOutput.additionalContext` -- the same mechanism the
      source-of-truth-agent-tool skill uses to reach agent-visible context.
@@ -31,8 +33,12 @@ import sys
 
 SCRIPT_DIRECTORY_ABSOLUTE_PATH = os.path.dirname(os.path.abspath(__file__))
 
-# Hook events this adapter knows how to answer. Both inject via additionalContext.
-SUPPORTED_HOOK_EVENT_NAMES = ("UserPromptSubmit", "PreToolUse")
+# Hook events this adapter knows how to answer, mapped to the topics.json
+# settings key that switches injection on/off for that event.
+HOOK_EVENT_NAME_TO_TRIGGER_SETTING_KEY = {
+    "UserPromptSubmit": "trigger_on_user_prompt_submit",
+    "PreToolUse": "trigger_on_tool_use",
+}
 DEFAULT_HOOK_EVENT_NAME = "UserPromptSubmit"
 
 
@@ -57,7 +63,7 @@ def _read_hook_event_name_from_stdin():
         return DEFAULT_HOOK_EVENT_NAME
 
     event_name = payload.get("hook_event_name") or payload.get("hookEventName")
-    if event_name in SUPPORTED_HOOK_EVENT_NAMES:
+    if event_name in HOOK_EVENT_NAME_TO_TRIGGER_SETTING_KEY:
         return event_name
     return DEFAULT_HOOK_EVENT_NAME
 
@@ -78,8 +84,10 @@ def _main():
         _emit_empty_and_exit_silently()
         return
 
-    # Passive mode: no hook injection at all -- only the SKILL.md manifest stands.
-    if not reminder_payload.get("active", True):
+    # Skip injection if the flag for THIS event is off -- the SKILL.md manifest
+    # still stands regardless. Setting both flags false is the passive equivalent.
+    trigger_setting_key = HOOK_EVENT_NAME_TO_TRIGGER_SETTING_KEY[hook_event_name]
+    if not reminder_payload.get(trigger_setting_key, True):
         _emit_empty_and_exit_silently()
         return
 

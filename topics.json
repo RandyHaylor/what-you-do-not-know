@@ -1,6 +1,7 @@
 {
   "settings": {
-    "mode": "active",
+    "trigger_on_tool_use": true,
+    "trigger_on_user_prompt_submit": true,
     "user_echo_detail": "full"
   },
   "preamble": "You are in the second stage of learning for most things - You know what you don't know.",

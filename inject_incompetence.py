@@ -7,12 +7,14 @@ claude_adapter_inject_incompetence.py) call build_reminder_payload() and wrap
 the returned values in whatever shape their host expects.
 
 build_reminder_payload() returns a dict with the agent message and the user
-message kept SEPARATE, plus whether the skill is active:
+message kept SEPARATE, plus a per-hook-event trigger flag for each event this
+skill can react to:
 
     {
-      "active": true,                 # from settings.mode ("active"/"passive")
-      "agent_message": "<full text>", # always the full reminder, for agent context
-      "user_message": "<text>"        # per settings.user_echo_detail
+      "trigger_on_tool_use": true,           # settings.trigger_on_tool_use
+      "trigger_on_user_prompt_submit": true, # settings.trigger_on_user_prompt_submit
+      "agent_message": "<full text>",        # always the full reminder, for agent context
+      "user_message": "<text>"               # per settings.user_echo_detail
     }
 
 User-echo detail levels (settings.user_echo_detail):
@@ -21,10 +23,11 @@ User-echo detail levels (settings.user_echo_detail):
   - "minimal" : one line, e.g. "...reminded agent it knows 3 things it does
                 not know...".
 
-Passive mode (settings.mode == "passive") means the host should perform NO hook
-injection; only the SKILL.md manifest stands. build_reminder_payload() still
-returns the assembled messages, but with "active": false so the adapter can
-choose to emit nothing.
+The two trigger flags replace a single active/passive mode: each hook event
+(PreToolUse, UserPromptSubmit) is switched on/off independently. Setting both
+to false means no hook injection at all -- only the SKILL.md manifest stands.
+The host adapter picks the flag matching the event it was invoked for and
+emits nothing when that flag is false.
 
 Run directly to print the payload as JSON to stdout (preview):
 
@@ -36,14 +39,12 @@ import sys
 
 TOPICS_JSON_FILENAME = "topics.json"
 
-MODE_ACTIVE = "active"
-MODE_PASSIVE = "passive"
-
 USER_ECHO_DETAIL_FULL = "full"
 USER_ECHO_DETAIL_COMPACT = "compact"
 USER_ECHO_DETAIL_MINIMAL = "minimal"
 
-DEFAULT_MODE = MODE_ACTIVE
+DEFAULT_TRIGGER_ON_TOOL_USE = True
+DEFAULT_TRIGGER_ON_USER_PROMPT_SUBMIT = True
 DEFAULT_USER_ECHO_DETAIL = USER_ECHO_DETAIL_FULL
 
 WHAT_YOU_DONT_KNOW_HEADER = "What you don't know:"
@@ -101,13 +102,17 @@ def build_user_message(user_echo_detail, preamble, things_you_do_not_know):
 def build_reminder_payload(topics_config=None):
     """Assemble the reminder payload from topics.json.
 
-    Returns {"active": bool, "agent_message": str, "user_message": str}.
+    Returns {"trigger_on_tool_use": bool, "trigger_on_user_prompt_submit": bool,
+    "agent_message": str, "user_message": str}.
     """
     if topics_config is None:
         topics_config = load_topics_config()
 
     settings = topics_config.get("settings", {})
-    mode = settings.get("mode", DEFAULT_MODE)
+    trigger_on_tool_use = settings.get("trigger_on_tool_use", DEFAULT_TRIGGER_ON_TOOL_USE)
+    trigger_on_user_prompt_submit = settings.get(
+        "trigger_on_user_prompt_submit", DEFAULT_TRIGGER_ON_USER_PROMPT_SUBMIT
+    )
     user_echo_detail = settings.get("user_echo_detail", DEFAULT_USER_ECHO_DETAIL)
 
     preamble = topics_config.get("preamble", "").strip()
@@ -117,7 +122,8 @@ def build_reminder_payload(topics_config=None):
     user_message = build_user_message(user_echo_detail, preamble, things_you_do_not_know)
 
     return {
-        "active": mode != MODE_PASSIVE,
+        "trigger_on_tool_use": bool(trigger_on_tool_use),
+        "trigger_on_user_prompt_submit": bool(trigger_on_user_prompt_submit),
         "agent_message": agent_message,
         "user_message": user_message,
     }
