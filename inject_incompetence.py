@@ -18,7 +18,7 @@ skill can react to:
     }
 
 User-echo detail levels (settings.user_echo_detail):
-  - "full"    : preamble + "What you don't know:" + every bullet (default).
+  - "full"    : preamble + "What you know you don't know includes:" + every bullet (default).
   - "compact" : only the bullets.
   - "minimal" : one line, e.g. "...reminded agent it knows 3 things it does
                 not know...".
@@ -47,7 +47,7 @@ DEFAULT_TRIGGER_ON_TOOL_USE = True
 DEFAULT_TRIGGER_ON_USER_PROMPT_SUBMIT = True
 DEFAULT_USER_ECHO_DETAIL = USER_ECHO_DETAIL_FULL
 
-WHAT_YOU_DONT_KNOW_HEADER = "What you don't know:"
+WHAT_YOU_DONT_KNOW_HEADER = "What you know you don't know includes:"
 
 
 def path_to_topics_json():

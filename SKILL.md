@@ -71,11 +71,16 @@ new Claude Code session after installing for the hook to take effect.
 
 ## Settings (`topics.json` → `settings`)
 
-| Setting | Values | Meaning |
-| --- | --- | --- |
-| `trigger_on_tool_use` | `true` (default) / `false` | Whether the hook injects on `PreToolUse` (every tool call). |
-| `trigger_on_user_prompt_submit` | `true` (default) / `false` | Whether the hook injects on `UserPromptSubmit` (every user prompt). |
-| `user_echo_detail` | `full` (default) / `compact` / `minimal` | How much of the reminder the USER sees. The AGENT always receives the full message. |
+| Setting | Values | Shipped default | Meaning |
+| --- | --- | --- | --- |
+| `trigger_on_tool_use` | `true` / `false` | `false` | Whether the hook injects on `PreToolUse` (every tool call). |
+| `trigger_on_user_prompt_submit` | `true` / `false` | `true` | Whether the hook injects on `UserPromptSubmit` (every user prompt). |
+| `user_echo_detail` | `full` / `compact` / `minimal` | `minimal` | How much of the reminder the USER sees. The AGENT always receives the full message. |
+
+"Shipped default" is what's in `topics.json` as committed. If a setting key is
+missing from `topics.json` entirely (not just a fresh install — an edited file
+that dropped a key), the code falls back to `true` / `true` / `full`
+respectively — this is a robustness fallback, not the shipped behavior.
 
 Setting both `trigger_on_tool_use` and `trigger_on_user_prompt_submit` to
 `false` is the passive equivalent: no hook injection at all, only the SKILL.md
@@ -83,7 +88,7 @@ manifest stands.
 
 `user_echo_detail` levels:
 
-- `full` — preamble + `What you don't know:` + every bullet.
+- `full` — preamble + `What you know you don't know includes:` + every bullet.
 - `compact` — only the bullets.
 - `minimal` — one line, e.g. `...reminded agent it knows 3 things it does not know...`.
 
