@@ -20,9 +20,10 @@ description: >-
 
 # what-you-do-not-know
 
-A tool that, on every user prompt and every tool call, injects a short reminder
-of what the agent does **not** actually know — to stop it acting like an
-authority on subjects it has not researched and claims it has not verified.
+A tool that injects a short reminder of what the agent does **not** actually
+know — on every user prompt and/or every tool call, independently configurable
+(see Settings) — to stop it acting like an authority on subjects it has not
+researched and claims it has not verified.
 
 ## The 4 stages of learning
 
@@ -52,7 +53,7 @@ impetus to act according to the stages of learning.
 
 | File | Purpose |
 | --- | --- |
-| `SKILL.md` | This file. Its frontmatter `description` is the manifest injected into every session — it carries the stages of learning and the "things not known" so passive mode works with no hook. |
+| `SKILL.md` | This file. Its frontmatter `description` is the manifest injected into every session — it carries the stages of learning and the "things not known" so the reminder still stands even with both hook triggers off. |
 | `topics.json` | Settings + the list of things the agent "knows" / "does not know". Edit this to change the message. |
 | `inject_incompetence.py` | Engine-agnostic core; the ONLY script that reads `topics.json`. Returns a JSON payload with the agent message and user message separate, plus a per-event trigger flag. |
 | `claude_adapter_inject_incompetence.py` | Claude-specific: reacts to Claude hooks, injects the agent message to agent context + echoes the user message to the user. Emits nothing for an event whose trigger flag is off. |

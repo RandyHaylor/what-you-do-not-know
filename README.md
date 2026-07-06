@@ -3,11 +3,11 @@ This skill is a tool that constantly reminds claude agents what the DO NOT KNOW 
 SKILL.md - minimal, explains the skill and how to update skill settings
 topics.json 
 	- the list of things the agent 'knows' and 'doesn't know' - can be updated by user/agent
-	- also contains settings, including the three optoins for level of detail for user echo
-	- has a setting that is passive/active - wherein there is no hook injection - only the SKILL.md manifest that gets added into every chat session stands as the impetus to act according to the stages of learning.
+	- also contains settings, including the three options for level of detail for user echo (full/compact/minimal)
+	- has two independent per-event trigger toggles (trigger_on_tool_use, trigger_on_user_prompt_submit). With both off there is no hook injection - only the SKILL.md manifest that gets added into every chat session stands as the impetus to act according to the stages of learning.
 inject_incompetence.py 
 	- cross platform script that assembles and returns the prompt from topics.json
-	- returns a json shape that contains the agent and user message separately
+	- returns a json shape that contains the agent and user message separately, plus the per-event trigger flags
 	- it's the only script that reads topics.json
 
 
@@ -35,16 +35,16 @@ The ai agent spends a lot of time at 1). If asked very directly and insistently,
 It has 4) for many things, but those are basic things, not advanced topics, yet it acts like it has 4) for many complex things, which in reality puts it back to 1) in practice.
 
 This skill's main goal is to elevate the base ai agent's awareness to have 2) as a baseline.
-This is acheived currently by a hook that injects a small string with every tool call and every user prompt submit, via claude hooks.
+This is acheived currently by a hook that injects a small string on the user prompt submit and/or tool use events, via claude hooks. Each event is independently toggleable in topics.json (user prompt submit is on by default; tool use is off by default).
 It will simply trigger on a pre-tool-use and user prompt submit hook and run the script, which injects the message with the context (see source-of-truth skill for how it injects to agent-visible context) AND it will echo the message so the user can see it too (so they know it's being sent AND they can see what the current content of it is).
 
 
 The message should look something like:
-You are in the second stage of learning for most things - You know what you don't know.  What you don't know: <fill in from list here>
+You are in the second stage of learning for most things - You know what you don't know.  What you know you don't know includes: <fill in from list here>
 
 List of topics 'not known':
 <we need to do some trial and error to figure out what works here>
-NOT KNOWN: The first thing you suspect to be the problem is actually the problem without concrete proof.
-NOT KNOWN: The best current solution to a design or troubleshooting problem is without a real web search first.
-NOT KNOWN: That you know better than the user about any given topic.
+The first thing you suspect to be the problem is actually the problem without concrete proof.
+The best current solution to a design or troubleshooting problem is without a real web search first.
+That you know better than the user about any given topic.
 
